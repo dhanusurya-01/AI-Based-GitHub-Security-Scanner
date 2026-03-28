@@ -1,24 +1,31 @@
 import os
 import sys
 import subprocess
+import time
+
+from rules import check_file
+from ai.llm_explainer import explain_vulnerability
 
 vulnerabilities_found = False
 
 
 def clone_repo(repo_url):
-    # Get repository name
     repo_name = repo_url.split("/")[-1].replace(".git", "")
-
-    # Create temp_repos folder if not exists
     os.makedirs("temp_repos", exist_ok=True)
 
-    # Create unique folder every run (prevents Windows permission error)
     clone_path = f"temp_repos/{repo_name}_{os.getpid()}"
 
     print(f"🌐 Cloning repository into {clone_path}...\n")
     subprocess.run(["git", "clone", repo_url, clone_path], check=True)
 
     return clone_path
+
+
+def safe_explain(issue, line, path):
+    try:
+        return explain_vulnerability(issue, line, path)
+    except Exception:
+        return "⚠ AI skipped (slow or not responding)"
 
 
 def run_scan(scan_path):
@@ -28,7 +35,6 @@ def run_scan(scan_path):
 
     for root, dirs, files in os.walk(scan_path):
 
-        # Skip .git directory
         if ".git" in root:
             continue
 
@@ -37,23 +43,27 @@ def run_scan(scan_path):
                 path = os.path.join(root, file)
 
                 try:
-                    with open(path, "r", errors="ignore") as f:
-                        code = f.read()
+                    issues = check_file(path)
 
-                        # Rule 1: Hardcoded password
-                        if "password" in code and "=" in code:
-                            print(f"[!] HARDCODED_SECRET detected in {path}")
-                            vulnerabilities_found = True
+                    for issue, line_no, line in issues:
+                        print(f"[!] {issue} detected in {path} at line {line_no}")
+                        print(f"👉 Code: {line}\n")
 
-                        # Rule 2: Unsafe eval
-                        if "eval(" in code:
-                            print(f"[!] UNSAFE_EVAL detected in {path}")
-                            vulnerabilities_found = True
+                        print("⏳ Trying AI explanation...(max 10s)\n")
 
-                        # Rule 3: Unsafe deserialization
-                        if "pickle.load" in code:
-                            print(f"[!] UNSAFE_DESERIALIZATION detected in {path}")
-                            vulnerabilities_found = True
+                        start = time.time()
+
+                        explanation = safe_explain(issue, line, path)
+
+                        # ⛔ If too slow → skip
+                        if time.time() - start > 30:
+                            explanation = "⚠ AI skipped (too slow)"
+
+                        print("🤖 AI Security Analysis:\n")
+                        print(explanation)
+                        print("-" * 60)
+
+                        vulnerabilities_found = True
 
                 except Exception as e:
                     print(f"⚠ Could not read file {path}: {e}")
@@ -61,12 +71,9 @@ def run_scan(scan_path):
 
 if __name__ == "__main__":
 
-    # Case 1: URL mode
     if len(sys.argv) == 2:
         repo_url = sys.argv[1]
         repo_path = clone_repo(repo_url)
-
-    # Case 2 & 3: GitHub Actions (Push / PR)
     else:
         print("🔄 Running in CI mode (Scanning current repository)\n")
         repo_path = "."
