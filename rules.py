@@ -1,11 +1,7 @@
 import re
 
-<<<<<<< HEAD
 
 def check_file(file_path):
-    """
-    Read file and send each line for analysis
-    """
     issues = []
 
     try:
@@ -15,105 +11,54 @@ def check_file(file_path):
         return issues
 
     for line_no, line in enumerate(lines, start=1):
+        code = line.strip()
 
         # 1. Hardcoded password
-        if re.search(r'password\s*=\s*["\'].*["\']', line, re.IGNORECASE):
-            issues.append(("HARDCODED_PASSWORD", line_no, line.strip()))
+        if re.search(r'password\s*=\s*["\'].+["\']', code, re.IGNORECASE):
+            issues.append(("HARDCODED_PASSWORD", line_no, code))
 
         # 2. Hardcoded secrets
-        if re.search(r'(api_key|secret|token)\s*=\s*["\'].*["\']', line, re.IGNORECASE):
-            issues.append(("HARDCODED_SECRET", line_no, line.strip()))
+        if re.search(r'(api_key|secret|token)\s*=\s*["\'].+["\']', code, re.IGNORECASE):
+            issues.append(("HARDCODED_SECRET", line_no, code))
 
         # 3. eval usage
-        if re.search(r'\beval\s*\(', line):
-            issues.append(("DANGEROUS_EVAL", line_no, line.strip()))
+        if "eval(" in code:
+            issues.append(("DANGEROUS_EVAL", line_no, code))
 
         # 4. exec usage
-        if re.search(r'\bexec\s*\(', line):
-            issues.append(("DANGEROUS_EXEC", line_no, line.strip()))
+        if "exec(" in code:
+            issues.append(("DANGEROUS_EXEC", line_no, code))
 
         # 5. SQL Injection risk
-        if re.search(r'execute\s*\(.*\+.*\)', line):
-            issues.append(("SQL_INJECTION_RISK", line_no, line.strip()))
+        if "execute(" in code and "+" in code:
+            issues.append(("SQL_INJECTION_RISK", line_no, code))
 
         # 6. Command Injection
-        if re.search(r'os\.system\s*\(', line):
-            issues.append(("COMMAND_INJECTION", line_no, line.strip()))
+        if "os.system(" in code:
+            issues.append(("COMMAND_INJECTION", line_no, code))
 
         # 7. Unsafe subprocess
-        if re.search(r'subprocess\.Popen\s*\(', line):
-            issues.append(("UNSAFE_SUBPROCESS", line_no, line.strip()))
+        if "subprocess.Popen(" in code or "subprocess.call(" in code:
+            issues.append(("UNSAFE_SUBPROCESS", line_no, code))
 
         # 8. Unsafe deserialization
-        if re.search(r'pickle\.load\s*\(', line):
-            issues.append(("UNSAFE_DESERIALIZATION", line_no, line.strip()))
+        if "pickle.load(" in code:
+            issues.append(("UNSAFE_DESERIALIZATION", line_no, code))
 
         # 9. Debug mode
-        if re.search(r'debug\s*=\s*True', line):
-            issues.append(("DEBUG_MODE_ON", line_no, line.strip()))
+        if "debug=True" in code or "debug = True" in code:
+            issues.append(("DEBUG_MODE_ON", line_no, code))
 
         # 10. Insecure HTTP
-        if re.search(r'http://', line):
-            issues.append(("INSECURE_HTTP", line_no, line.strip()))
+        if "http://" in code:
+            issues.append(("INSECURE_HTTP", line_no, code))
 
         # 11. Hidden exception
-        if re.search(r'except\s*:\s*pass', line):
-            issues.append(("HIDDEN_EXCEPTION", line_no, line.strip()))
+        if re.search(r'except\s*:.*pass', code):
+            issues.append(("HIDDEN_EXCEPTION", line_no, code))
 
         # 12. Weak random
-        if re.search(r'random\.random\s*\(', line):
-            issues.append(("WEAK_RANDOM_USAGE", line_no, line.strip()))
-=======
-def check_code(code):
-    issues = []
-
-    # 1. Hardcoded password
-    if re.search(r'password\s*=\s*["\'].*["\']', code, re.IGNORECASE):
-        issues.append("HARDCODED_PASSWORD")
-
-    # 2. Hardcoded secrets (API keys, tokens)
-    if re.search(r'(api_key|secret|token)\s*=\s*["\'].*["\']', code, re.IGNORECASE):
-        issues.append("HARDCODED_SECRET")
-
-    # 3. eval usage
-    if re.search(r'\beval\s*\(', code):
-        issues.append("DANGEROUS_EVAL")
-
-    # 4. exec usage
-    if re.search(r'\bexec\s*\(', code):
-        issues.append("DANGEROUS_EXEC")
-
-    # 5. SQL Injection risk
-    if re.search(r'execute\s*\(.*\+.*\)', code):
-        issues.append("SQL_INJECTION_RISK")
-
-    # 6. Command Injection (os.system)
-    if re.search(r'os\.system\s*\(', code):
-        issues.append("COMMAND_INJECTION")
-
-    # 7. Unsafe subprocess
-    if re.search(r'subprocess\.Popen\s*\(', code):
-        issues.append("UNSAFE_SUBPROCESS")
-
-    # 8. Unsafe deserialization (pickle)
-    if re.search(r'pickle\.load\s*\(', code):
-        issues.append("UNSAFE_DESERIALIZATION")
->>>>>>> dfe019bbd0fd1d09cd1a4a4d165f9a93c97efe05
-
-    # 9. Debug mode enabled
-    if re.search(r'debug\s*=\s*True', code):
-        issues.append("DEBUG_MODE_ON")
-
-    # 10. Insecure HTTP usage
-    if re.search(r'http://', code):
-        issues.append("INSECURE_HTTP")
-
-    # 11. Bare except (hides errors)
-    if re.search(r'except\s*:\s*pass', code):
-        issues.append("HIDDEN_EXCEPTION")
-
-    # 12. Weak random usage
-    if re.search(r'random\.random\s*\(', code):
-        issues.append("WEAK_RANDOM_USAGE")
+        if "random.random(" in code:
+            issues.append(("WEAK_RANDOM_USAGE", line_no, code))
 
     return issues
